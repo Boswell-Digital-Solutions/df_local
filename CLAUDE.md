@@ -1,57 +1,60 @@
-# DF Local Foundation — Claude Instructions
+# CLAUDE.md
 
-## Module Map
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-| Module | Surface | Current role |
-| --- | --- | --- |
-| Documentation Stack | `doc/system/`, `SYSTEM.md`, `scripts/context-bundle.sh` | Canonical repo context and build surfaces |
-| Data and Schemas | `schemas/`, `models/`, `db/`, `sql/`, `alembic/`, or `migrations/` | Persistence and validation surfaces |
-| Governance and Specs | `docs/`, `governance/`, `DECISIONS/`, `prompts/`, `evals/`, `analytics/`, or `registry/` | Repo doctrine, experiments, and supporting design material |
-| Verification | `tests/`, `fixtures/`, `evidence/`, `audit/`, or `reports/` | Test and audit surfaces |
+## Project Overview
 
-## Coding Standards
+DF Local Foundation is the shared local-first PostgreSQL control surface for Forge ecosystem
+applications: disciplined DB lifecycle, canonical migration/schema-version reporting, coarse
+health/readiness/status contracts, backup/export/restore doctrine and tooling, and app
+registration/compatibility conventions. It is not DataForge (the cloud persistence service), not a
+universal business-schema repository, and not a control-plane inspection backdoor.
 
-- Treat `doc/system/` part files as canonical; rebuild root `SYSTEM.md` with `bash doc/system/BUILD.sh`
-- Keep documentation in present tense and aligned to implemented reality
-- Prefer bounded patches over broad rewrites unless a file is clearly scaffold-only
-- Do not bypass repo-local authority boundaries documented in `SYSTEM.md`
+Canonical reference: `doc/system/` → root `SYSTEM.md` (`bash doc/system/BUILD.sh`). `SYSTEM.md` is
+a build artifact; edit the parts, never the artifact.
 
-## File Conventions
-
-- Canonical system docs live under `doc/system/`
-- Root `SYSTEM.md` is a build artifact
-- Supporting design material lives under `docs/`
-- Repo automation scripts live under `scripts/`
-- Tests live under `tests/` when present
-
-## Context Loading
+## Common Commands
 
 ```bash
-# Show available sections and presets
-./scripts/context-bundle.sh --list
+python -m pytest              # run tests (testpaths = tests/, asyncio_mode = auto)
+ruff check .                   # lint (target-version py311, line-length 100)
+mypy .                          # strict type checking
 
-# Core bundle
-./scripts/context-bundle.sh --preset core
+tools/db-status                # report lifecycle status and migration state
+tools/db-backup                 # create a versioned local backup
+tools/db-restore                # restore with integrity and compatibility checks
+tools/db-export                 # export with metadata envelope
 
-# Documentation or testing-focused bundles
-./scripts/context-bundle.sh --preset docs
-./scripts/context-bundle.sh --preset testing
+./scripts/context-bundle.sh --list          # list context-bundle sections/presets
+./scripts/context-bundle.sh --preset core   # generate a context bundle
 ```
 
-## Ecosystem Rules
+## Architecture
 
-- Keep cross-repo integrations explicit and documented
-- Do not invent undocumented APIs, tables, routes, or environment variables
-- If a runtime contract changes, update `doc/system/`, rebuild `SYSTEM.md`, and keep `CLAUDE.md` current
+```
+df_local/
+  docs/                          # Doctrine and contract documentation
+  contracts/                     # JSON Schema contracts
+  sql/core/                       # Shared core SQL migrations
+  core/
+    lifecycle/                   # DB start / stop / status / readiness
+    config/                      # Env contract and connection conventions
+    health/                      # Health reporting surface
+    backup/                      # Backup utilities
+    export/                      # Export utilities
+  tools/                          # Operator CLI tools (db-status/backup/restore/export)
+  tests/                          # Contract and boundary tests
+```
 
-## Testing Expectations
+## Notes
 
-- Run the repo's existing tests when available before claiming a change is complete
-- Keep documentation build and context-bundle scripts working
-- Expand test documentation in `SYSTEM.md` as exact suites and commands are cataloged
-
-## Change Protocol
-
-- Edit `doc/system/` part files, not the generated root `SYSTEM.md`
-- Rebuild `SYSTEM.md` after documentation changes
-- Keep new docs honest about current implementation state
+- **What it does not own:** app business schemas (manuscripts, lore, campaigns, watchlists, etc.),
+  customer domain truth, billing/subscription authority, or any canonical AI-memory surface. See
+  `docs/privacy-doctrine.md` for the full boundary definition.
+- Invariants (see README for the full list): app-local domain truth stays app-owned; this repo
+  stays minimal; ForgeCommand sees declared operational state only; NeuronForge Local is not the
+  owner of canonical truth; restore/export/backups are versioned and integrity-checked; suspicious
+  or ambiguous states fail closed.
+- Treat `doc/system/` part files as canonical; rebuild root `SYSTEM.md` after any change, and keep
+  this file current if a runtime contract changes.
+- Do not invent undocumented APIs, tables, routes, or environment variables.
