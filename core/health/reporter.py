@@ -7,13 +7,14 @@ no domain metadata may appear in the response.
 
 from __future__ import annotations
 
-import jsonschema
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ..lifecycle.manager import LifecycleManager, LifecycleState, LifecycleStatus
+import jsonschema
+
+from ..lifecycle.manager import LifecycleManager, LifecycleState
+from .service_status_reporter import build_service_status_envelope
 
 # Load the contract schema for validation
 _SCHEMA_PATH = Path(__file__).parent.parent.parent / "contracts" / "health.schema.json"
@@ -94,6 +95,17 @@ class HealthReporter:
         """Produce a HealthResponse directly from a LifecycleState snapshot."""
         raw = state.to_health_dict()
         return HealthResponse(raw)
+
+    async def get_service_status(self) -> dict[str, Any]:
+        """Return the current state as a Forge_Command FC-LTA-P007 envelope.
+
+        A separate contract from `get_health()` (`forge-local-systems-runtime`'s
+        accepted `service-status.schema.json`, not `contracts/health.schema.json`)
+        derived from the same real lifecycle state. This is still the sole
+        serialization surface -- no consumer reaches lifecycle state directly.
+        """
+        state = await self._lifecycle.status()
+        return build_service_status_envelope(state)
 
 
 class PrivacyViolationError(Exception):

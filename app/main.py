@@ -7,8 +7,12 @@ database; this endpoint lets control-plane consumers (e.g. ForgeCommand) read co
 without any direct database access of their own.
 
 Endpoints:
-  GET /live     Process liveness (never touches the database).
-  GET /health   Database-aware foundation health (DFLocalHealthStatus contract).
+  GET /live                     Process liveness (never touches the database).
+  GET /health                   Database-aware foundation health (DFLocalHealthStatus contract).
+  GET /health/service-status    Forge_Command FC-LTA-P007 envelope (forge-local-systems-runtime's
+                                 accepted service-status contract). A separate surface from
+                                 /health: that contract is load-bearing elsewhere and cannot carry
+                                 this one's fields (additionalProperties: false on both sides).
 """
 
 from __future__ import annotations
@@ -74,6 +78,13 @@ def create_app(
         # DB-aware foundation health, validated against contracts/health.schema.json by the reporter.
         response = await reporter.get_health()
         return response.to_dict()
+
+    @app.get("/health/service-status")
+    async def service_status(reporter: Annotated[HealthReporter, Depends(get_reporter)]) -> dict[str, Any]:
+        # Forge_Command FC-LTA-P007 envelope, validated against
+        # contracts/forge_local_runtime/service-status.schema.json by the reporter.
+        # Separate from /health -- see the module docstring.
+        return await reporter.get_service_status()
 
     return app
 
